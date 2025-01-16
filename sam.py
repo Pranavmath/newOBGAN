@@ -16,7 +16,7 @@ def get_mask(image, bbox):
     - mask (np.ndarray): Binary mask of the same size as the input image, with values 0 or 1.
     """
     # Load the pre-trained SAM model (adjust the path to the checkpoint as needed)
-    sam = sam_model_registry["vit_h"](checkpoint="sam_vit_h.pth")
+    sam = sam_model_registry["vit_h"](checkpoint="sam_vit_h.pth").to("cuda")
     predictor = SamPredictor(sam)
     
     image_tensor = np.repeat(np.array(image)[..., np.newaxis], 3, axis=2)

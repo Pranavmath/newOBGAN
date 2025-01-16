@@ -19,7 +19,6 @@ with open("./refineddataset/nodules.json") as f:
 
 nodule_metadata = {}
 
-i = 0
 
 for img_name in tqdm(nodule_dict.keys()):
     for nodule_name, bbox in nodule_dict[img_name]:
@@ -35,7 +34,7 @@ for img_name in tqdm(nodule_dict.keys()):
         bbox = [SIZE//2 - width//2, SIZE//2 - height//2, SIZE//2 + width//2, SIZE//2 + height//2] # xmin, ymin, xmax, ymax
 
         # we increase contrast so its easier for SAM to get mask
-        mask = get_mask(ImageEnhance.Contrast(subtract).enhance(2.5), bbox)
+        mask = get_mask(ImageEnhance.Contrast(subtract).enhance(2), bbox)
 
         final_bbox = get_bounding_box(mask)
         area = get_area(mask)
@@ -47,10 +46,6 @@ for img_name in tqdm(nodule_dict.keys()):
         sam_mask_img = Image.fromarray(mask * 255, "L")
         sam_mask_img.save(os.path.join("./refineddataset/sam_masks", f"{nodule_name}.jpg"))
 
-    i += 1
 
-    if i == 3:
-        break
-
-with open("./refineddataset/nodulemetadata.json", "w") as f:
-    json.dump(nodule_metadata, f, default=int)
+    with open("./refineddataset/nodulemetadata.json", "w") as f:
+        json.dump(nodule_metadata, f, default=int)
