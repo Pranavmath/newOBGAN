@@ -25,7 +25,7 @@ class NoduleDataset(Dataset):
         self.control_dir = control_dir
         self.annotations = json.load(open(annotations_file))
         self.annotations = {k + ".jpg": [annotation[1] for annotation in v] for k, v in self.annotations.items()}
-        self.nodule_images = list(self.annotations.keys())
+        self.nodule_images = os.listdir(self.xray_dir)
         self.transform = transform
 
         positive_sample_percentage = 1 - negative_sample_percentage
@@ -96,7 +96,7 @@ class CurriculumNoduleDataset(Dataset):
         self.annotations = json.load(open(annotations_file))
         self.annotations = {k + ".jpg": [annotation[1] for annotation in v] for k, v in self.annotations.items()}
         self.difficulties = json.load(open(difficulty_file))
-        self.nodule_images = list(self.annotations.keys())
+        self.nodule_images = os.listdir(self.xray_dir)
         self.transform = transform
         self.current_difficulty = 0
 
