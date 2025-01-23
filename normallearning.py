@@ -33,8 +33,9 @@ transform = transforms.Compose([
 ])
 
 NUM_EPOCHS = 1000
-BATCH_SIZE = 6
-SAVE_MODEL_INTERVAL = 1
+# doing batch size of 4 since 1, 2, or 4 was recommended for faster rcnn
+BATCH_SIZE = 4
+SAVE_MODEL_INTERVAL = 12
 
 device = torch.device("cuda")
 cpu_device = torch.device("cpu")
