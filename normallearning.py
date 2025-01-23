@@ -14,6 +14,15 @@ import wandb
 
 wandb.init(project="diff model training")
 
+def is_negative_target(targets):
+    # needs to be a evaluation  batch size of 1 so 1 target only
+    if(len(targets) != 1):
+      raise ValueError("The length of targets should be 1")
+    target = targets[0]
+
+    assert len(target["labels"]) == len(target["boxes"])
+    return 0 == len(target["labels"]) == len(target["boxes"])
+
 def collate_fn(batch):
     return tuple(zip(*batch))
 
@@ -104,6 +113,8 @@ for epoch in range(NUM_EPOCHS):
     iou_types = _get_iou_types(model)
     coco_evaluator = CocoEvaluator(coco, iou_types)
 
+    total_negative, correct_negative = 0, 0
+
     for images, targets in val_loader:
         images = list(image.to(device) for image in images)
 
@@ -112,11 +123,17 @@ for epoch in range(NUM_EPOCHS):
 
         res = {target["image_id"]: output for target, output in zip(targets, outputs)}
 
-        coco_evaluator.update(res)
+        if not is_negative_target(targets):
+            coco_evaluator.update(res)
+        else:
+            total_negative += 1
+            if is_negative_target(outputs): correct_negative += 1
 
+    #print(len(val_loader), total_negative, correct_negative)
     
     coco_evaluator.accumulate()
     coco_evaluator.summarize()
+
 
     # first - iou=0.5:0.95, second - iou=0.50, third - iou=0.75
     iou, iou50, iou75 = coco_evaluator.coco_eval["bbox"].stats[:3]
