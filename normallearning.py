@@ -139,7 +139,8 @@ for epoch in range(NUM_EPOCHS):
     iou, iou50, iou75 = coco_evaluator.coco_eval["bbox"].stats[:3]
     avg_train_loss = sum(avg_train_loss)/len(avg_train_loss)
 
-    wandb.log({"train loss - epoch": avg_train_loss, "eval AP iou=0.5:0.95 - epoch": iou, "eval AP iou=0.50 - epoch": iou50, "eval AP iou=0.75 - epoch": iou75})
+    # control accuracy is how good on control images, AP is for non-control (positive) images
+    wandb.log({"train loss - epoch": avg_train_loss, "eval AP iou=0.5:0.95 - epoch": iou, "eval AP iou=0.50 - epoch": iou50, "eval AP iou=0.75 - epoch": iou75, "control accuracy": correct_negative/total_negative})
 
     if epoch % SAVE_MODEL_INTERVAL == 0:
         torch.save(model, f"fcnn{epoch}.pth")
