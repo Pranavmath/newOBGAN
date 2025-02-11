@@ -13,7 +13,7 @@ import torch
 import wandb
 from torchmetrics.detection import MeanAveragePrecision
 from torchvision.models.detection.rpn import AnchorGenerator
-
+import torchvision.models.detection._utils as det_utils
 
 wandb.init(project="diff model training", save_code=True)
 wandb.save("./normallearning.py")
@@ -44,6 +44,12 @@ def get_model():
         aspect_ratios=aspect_ratios
     )
 
+    model.rpn.fg_bg_sampler = det_utils.BalancedPositiveNegativeSampler(batch_size_per_image=256, positive_fraction=0.2)
+    
+    model.roi_heads.box_predictor.loss_cls = torch.nn.CrossEntropyLoss(
+        weight=torch.tensor([1.0, 5.0])  # Adjust class weights
+    )
+
     return model
 
 
@@ -72,20 +78,22 @@ val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, collate_fn=coll
 
 params = [p for p in model.parameters() if p.requires_grad]
 
+"""
 optimizer = torch.optim.AdamW(
     params,
     lr=0.0001,
     weight_decay=1e-3
 )
-
 """
+
+
 optimizer = torch.optim.SGD(
     params,
     lr=0.0005,  # Start with a lower LR
     momentum=0.9,
-    weight_decay=0.0005
+    weight_decay=1e-4
 )
-"""
+
 
 # and a learning rate scheduler
 """
