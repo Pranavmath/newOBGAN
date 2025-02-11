@@ -31,7 +31,7 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 def get_model():
-    model = fcnn(weights="DEFAULT")
+    model = fcnn(weights="DEFAULT", rpn_batch_size_per_image=256, rpn_positive_fraction=0.2)
     num_classes = 2  # 1 class (nodule) + background
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
@@ -43,8 +43,6 @@ def get_model():
         sizes=anchor_sizes,
         aspect_ratios=aspect_ratios
     )
-
-    model.rpn.fg_bg_sampler = det_utils.BalancedPositiveNegativeSampler(batch_size_per_image=256, positive_fraction=0.2)
     
     model.roi_heads.box_predictor.loss_cls = torch.nn.CrossEntropyLoss(
         weight=torch.tensor([1.0, 5.0])  # Adjust class weights
