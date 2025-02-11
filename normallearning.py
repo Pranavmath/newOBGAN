@@ -12,8 +12,11 @@ import torch
 #from pytorchref.coco_utils import get_coco_api_from_dataset, _get_iou_types
 import wandb
 from torchmetrics.detection import MeanAveragePrecision
+from torchvision.models.detection.rpn import AnchorGenerator
 
-wandb.init(project="diff model training")
+
+wandb.init(project="diff model training", save_code=True)
+wandb.save("./normallearning.py")
 
 def is_negative_target(targets):
     # needs to be a evaluation  batch size of 1 so 1 target only
@@ -32,6 +35,14 @@ def get_model():
     num_classes = 2  # 1 class (nodule) + background
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+    anchor_sizes = ((8,), (16,), (32,), (64,), (75,))  # Reduce default sizes
+    aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
+
+    model.rpn.anchor_generator = AnchorGenerator(
+        sizes=anchor_sizes,
+        aspect_ratios=aspect_ratios
+    )
 
     return model
 
@@ -61,18 +72,35 @@ val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, collate_fn=coll
 
 params = [p for p in model.parameters() if p.requires_grad]
 
-optimizer = torch.optim.Adam(
+optimizer = torch.optim.AdamW(
     params,
-    lr=0.001,
-    weight_decay=0.0005
+    lr=0.0001,
+    weight_decay=1e-3
 )
 
+"""
+optimizer = torch.optim.SGD(
+    params,
+    lr=0.0005,  # Start with a lower LR
+    momentum=0.9,
+    weight_decay=0.0005
+)
+"""
+
 # and a learning rate scheduler
+"""
 lr_scheduler = torch.optim.lr_scheduler.StepLR(
     optimizer,
     step_size=30,
     gamma=0.1
 )
+"""
+
+
+lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer, mode="max", factor=0.1, patience=15, verbose=True
+)
+
 
 scaler = torch.amp.GradScaler()
 
@@ -102,7 +130,6 @@ for epoch in range(NUM_EPOCHS):
         scaler.scale(losses).backward()
         scaler.step(optimizer)
         scaler.update()
-        lr_scheduler.step()
 
         avg_train_loss.append(losses.item())
 
@@ -150,11 +177,14 @@ for epoch in range(NUM_EPOCHS):
 
     # control accuracy is how good on control images, AP is for non-control (positive) images
     wandb.log({"train loss - epoch": avg_train_loss, "eval AP iou=0.5:0.95 - epoch": iou, "eval AP iou=0.50 - epoch": iou50, "eval AP iou=0.75 - epoch": iou75, "control accuracy": control_accuracy})
+    
+    
+    lr_scheduler.step(iou)
+
 
     if epoch % SAVE_MODEL_INTERVAL == 0:
         torch.save(model, f"fcnn{epoch}.pth")
     
-
 
 torch.save(model, f"fcnn_final.pth")
 
@@ -176,4 +206,4 @@ def run():
             num_negative += 1
 
     print(length, length * 0.2, num_negative)
-"""
+""" 
