@@ -6,9 +6,7 @@ import random
 import json
 from torchvision.transforms import functional as F
 
-# does image need to norm to -1, 1 or 0, 1 for faster rcnn
-# does image need to norm to -1, 1 or 0, 1 for faster rcnn
-# does image need to norm to -1, 1 or 0, 1 for faster rcnn
+# image norm to 0, 1 for faster rcnn
 
 
 class NoduleDataset(Dataset):
@@ -105,6 +103,9 @@ class CurriculumNoduleDataset(Dataset):
 
     
     def _update_idx_is_negative(self, old_difficulty, new_difficulty):
+        if new_difficulty < old_difficulty:
+            raise ValueError("new_difficulty must be >= old_difficulty")
+
         for image in self.nodule_images:
             if old_difficulty < self.difficulties[image] <= new_difficulty:
                 self.idx_is_negative.append((False, image))

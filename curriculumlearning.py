@@ -14,7 +14,7 @@ import wandb
 from torchmetrics.detection import MeanAveragePrecision
 from torchvision.models.detection.rpn import AnchorGenerator
 import torchvision.models.detection._utils as det_utils
-
+import numpy as np
 
 wandb.init(project="diff model training", save_code=True)
 wandb.save("./normallearning.py")
@@ -32,7 +32,7 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 def get_model():
-    model = fcnn(weights="DEFAULT")
+    model = fcnn(weights="DEFAULT", rpn_batch_size_per_image=256, rpn_positive_fraction=0.2)
     num_classes = 2  # 1 class (nodule) + background
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
@@ -44,9 +44,10 @@ def get_model():
         sizes=anchor_sizes,
         aspect_ratios=aspect_ratios
     )
-
-    # default is 256, 0.5
-    model.rpn.fg_bg_sampler = det_utils.BalancedPositiveNegativeSampler(batch_size_per_image, positive_fraction)
+    
+    model.roi_heads.box_predictor.loss_cls = torch.nn.CrossEntropyLoss(
+        weight=torch.tensor([1.0, 5.0])  # Adjust class weights
+    )
 
     return model
 
@@ -57,7 +58,8 @@ transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
-NUM_EPOCHS = 1000
+# num of epochs per difficulty
+NUM_EPOCHS = 3
 # doing batch size of 4 since 1, 2, or 4 was recommended for faster rcnn
 BATCH_SIZE = 4
 SAVE_MODEL_INTERVAL = 12
@@ -67,44 +69,55 @@ cpu_device = torch.device("cpu")
 
 model = get_model().to(device)
 
-train_dataset = NoduleDataset("./refineddataset/trainxrays", "./refineddataset/control", "./refineddataset/nodules.json", 0, transform)
+train_dataset = CurriculumNoduleDataset("./refineddataset/trainxrays", "./refineddataset/control", "./refineddataset/nodules.json", None, 0, transform)
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
 
-val_dataset = NoduleDataset("./refineddataset/testxrays", "./refineddataset/control", "./refineddataset/nodules.json", 0, transform)
+val_dataset = CurriculumNoduleDataset("./refineddataset/testxrays", "./refineddataset/control", "./refineddataset/nodules.json", None, 0, transform)
 val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
 
 
 params = [p for p in model.parameters() if p.requires_grad]
 
-optimizer = torch.optim.AdamW(
-    params,
-    lr=0.0001,  
-    weight_decay=1e-3
-)
-
 """
+optimizer = torch.optim.Adam(
+    params,
+    lr=0.0001,
+    weight_decay=5e-4
+)
+"""
+
+#"""
 optimizer = torch.optim.SGD(
     params,
-    lr=0.0005,  # Start with a lower LR
+    lr=0.003,  # Start with a lower LR
     momentum=0.9,
-    weight_decay=0.0005
+    weight_decay=1e-4
+)
+#"""
+
+"""
+optimizer = torch.optim.RAdam(
+    params,
+    lr=0.0003,
+    weight_decay=5e-4
 )
 """
+
 
 # and a learning rate scheduler
-"""
+#"""
 lr_scheduler = torch.optim.lr_scheduler.StepLR(
     optimizer,
-    step_size=30,
+    step_size=15,
     gamma=0.1
 )
+#"""
+
 """
-
-
 lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, mode="max", factor=0.1, patience=15, verbose=True
 )
-
+"""
 
 scaler = torch.amp.GradScaler()
 
@@ -114,31 +127,44 @@ metric = MeanAveragePrecision(iou_type="bbox")
 
 print("Started Training")
 
-for epoch in range(NUM_EPOCHS):
-    print(f"Training for epoch: {epoch}")
+# decreases from 1 -> 0, then stays at 0 for NUM_AT_ZERO amount of times
+NUM_AT_ZERO = 10
+diffs = np.linspace(0, 1, num=100) + [0] * NUM_AT_ZERO
 
+for diff in diffs:
+    print(f"Training for difficulty: {diff}")
     model.train()
 
-    avg_train_loss = []
+    for epoch in range(NUM_EPOCHS):
+        avg_train_loss = []
 
-    for images, targets in train_loader:
-        optimizer.zero_grad()
+        for images, targets in train_loader:
+            optimizer.zero_grad()
 
-        images = list(image.to(device) for image in images)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            images = list(image.to(device) for image in images)
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-            loss_dict = model(images, targets)
-            losses = sum(loss for loss in loss_dict.values())
+            with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                loss_dict = model(images, targets)
+                losses = sum(loss for loss in loss_dict.values())
 
-        scaler.scale(losses).backward()
-        scaler.step(optimizer)
-        scaler.update()
+            scaler.scale(losses).backward()
+            
+            #"""
+            scaler.unscale_(optimizer)
 
-        avg_train_loss.append(losses.item())
+            # Since the gradients of optimizer's assigned params are unscaled, clips as usual:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
+            #"""
+
+            scaler.step(optimizer)
+            scaler.update()
+
+            avg_train_loss.append(losses.item())
 
 
-    print(f"Evaluating for epoch: {epoch}")
+
+    print(f"Evaluating for diff: {diff}")
 
     model.eval()
     
@@ -180,15 +206,14 @@ for epoch in range(NUM_EPOCHS):
     avg_train_loss = sum(avg_train_loss)/len(avg_train_loss)
 
     # control accuracy is how good on control images, AP is for non-control (positive) images
-    wandb.log({"train loss - epoch": avg_train_loss, "eval AP iou=0.5:0.95 - epoch": iou, "eval AP iou=0.50 - epoch": iou50, "eval AP iou=0.75 - epoch": iou75, "control accuracy": control_accuracy})
+    wandb.log({"train loss - diff": avg_train_loss, "eval AP iou=0.5:0.95 - diff": iou, "eval AP iou=0.50 - diff": iou50, "eval AP iou=0.75 - diff": iou75, "control accuracy": control_accuracy})
     
-    
+
+
+
+    # lr scheduler should step every 
     lr_scheduler.step(iou)
 
-
-    if epoch % SAVE_MODEL_INTERVAL == 0:
-        torch.save(model, f"fcnn{epoch}.pth")
-    
 
 torch.save(model, f"fcnn_final.pth")
 

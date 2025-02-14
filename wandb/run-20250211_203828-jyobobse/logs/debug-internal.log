@@ -1,0 +1,15 @@
+{"time":"2025-02-11T20:38:28.8984041-05:00","level":"INFO","msg":"stream: starting","core version":"0.19.4","symlink path":"C:\\Users\\prana\\Desktop\\newOBGAN\\wandb\\run-20250211_203828-jyobobse\\logs\\debug-core.log"}
+{"time":"2025-02-11T20:38:29.0113563-05:00","level":"INFO","msg":"created new stream","id":"jyobobse"}
+{"time":"2025-02-11T20:38:29.0113563-05:00","level":"INFO","msg":"stream: started","id":"jyobobse"}
+{"time":"2025-02-11T20:38:29.0113563-05:00","level":"INFO","msg":"writer: Do: started","stream_id":"jyobobse"}
+{"time":"2025-02-11T20:38:29.0113563-05:00","level":"INFO","msg":"handler: started","stream_id":"jyobobse"}
+{"time":"2025-02-11T20:38:29.0113563-05:00","level":"INFO","msg":"sender: started","stream_id":"jyobobse"}
+{"time":"2025-02-11T20:38:29.1812231-05:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-11T20:38:29.3656439-05:00","level":"INFO","msg":"stream: closing","id":"jyobobse"}
+{"time":"2025-02-11T20:38:29.3656439-05:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-02-11T20:38:29.3656439-05:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-02-11T20:38:29.9354789-05:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-02-11T20:38:30.0886263-05:00","level":"INFO","msg":"handler: closed","stream_id":"jyobobse"}
+{"time":"2025-02-11T20:38:30.0886263-05:00","level":"INFO","msg":"writer: Close: closed","stream_id":"jyobobse"}
+{"time":"2025-02-11T20:38:30.0886263-05:00","level":"INFO","msg":"sender: closed","stream_id":"jyobobse"}
+{"time":"2025-02-11T20:38:30.0886263-05:00","level":"INFO","msg":"stream: closed","id":"jyobobse"}
