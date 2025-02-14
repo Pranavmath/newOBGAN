@@ -210,29 +210,4 @@ for diff in diffs:
     
 
 
-
-    # lr scheduler should step every 
-    lr_scheduler.step(iou)
-
-
 torch.save(model, f"fcnn_final.pth")
-
-
-
-
-
-
-
-"""
-def run():
-    length = len(nd)
-
-    num_negative = 0
-
-    for _, target in tqdm(nd):
-        # if negative
-        if not list(target["boxes"]):
-            num_negative += 1
-
-    print(length, length * 0.2, num_negative)
-""" 
