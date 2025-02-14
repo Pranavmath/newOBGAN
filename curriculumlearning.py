@@ -12,9 +12,10 @@ import wandb
 from torchmetrics.detection import MeanAveragePrecision
 from torchvision.models.detection.rpn import AnchorGenerator
 import torchvision.models.detection._utils as det_utils
+import numpy as np
 
 wandb.init(project="diff model training", save_code=True)
-wandb.save("./normallearning.py")
+wandb.save("./curriculumlearning.py")
 
 def is_negative_target(targets):
     # needs to be a evaluation  batch size of 1 so 1 target only
@@ -66,7 +67,8 @@ cpu_device = torch.device("cpu")
 
 model = get_model().to(device)
 
-train_dataset = CurriculumNoduleDataset("./refineddataset/trainxrays", "./refineddataset/control", "./refineddataset/nodules.json", None, 0, transform)
+train_dataset = CurriculumNoduleDataset("./refineddataset/trainxrays", "./refineddataset/control", "./refineddataset/nodules.json", "./refineddataset/difficulties.json", 0, transform)
+train_dataset.set_difficulty(-1.2)
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
 
 val_dataset = NoduleDataset("./refineddataset/testxrays", "./refineddataset/control", "./refineddataset/nodules.json", 0, transform)
@@ -90,12 +92,12 @@ metric = MeanAveragePrecision(iou_type="bbox")
 
 print("Started Training")
 
-# decreases from 1 -> 0, then stays at 0 for NUM_AT_ZERO amount of times
 NUM_AT_ZERO = 10
-diffs = np.linspace(0, 1, num=100) + [0] * NUM_AT_ZERO
+diffs = list(np.linspace(-1.2, 3.4, num=100)) + [3.4] * NUM_AT_ZERO
 
 for diff in diffs:
-    print(f"Training for difficulty: {diff}")
+    train_loader.dataset.set_difficulty(diff)
+    print(f"Training for difficulty: {diff}, length: {len(train_loader)}")
     model.train()
 
     for epoch in range(NUM_EPOCHS):
