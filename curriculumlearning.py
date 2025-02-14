@@ -8,13 +8,10 @@ import torchvision
 from torchvision import transforms
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, fasterrcnn_resnet50_fpn_v2 as fcnn
 import torch
-#from pytorchref.coco_eval import CocoEvaluator
-#from pytorchref.coco_utils import get_coco_api_from_dataset, _get_iou_types
 import wandb
 from torchmetrics.detection import MeanAveragePrecision
 from torchvision.models.detection.rpn import AnchorGenerator
 import torchvision.models.detection._utils as det_utils
-import numpy as np
 
 wandb.init(project="diff model training", save_code=True)
 wandb.save("./normallearning.py")
@@ -72,52 +69,18 @@ model = get_model().to(device)
 train_dataset = CurriculumNoduleDataset("./refineddataset/trainxrays", "./refineddataset/control", "./refineddataset/nodules.json", None, 0, transform)
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
 
-val_dataset = CurriculumNoduleDataset("./refineddataset/testxrays", "./refineddataset/control", "./refineddataset/nodules.json", None, 0, transform)
+val_dataset = NoduleDataset("./refineddataset/testxrays", "./refineddataset/control", "./refineddataset/nodules.json", 0, transform)
 val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
 
 
 params = [p for p in model.parameters() if p.requires_grad]
 
-"""
-optimizer = torch.optim.Adam(
-    params,
-    lr=0.0001,
-    weight_decay=5e-4
-)
-"""
-
-#"""
 optimizer = torch.optim.SGD(
     params,
-    lr=0.003,  # Start with a lower LR
+    lr=0.005,  # Start with a lower LR
     momentum=0.9,
     weight_decay=1e-4
 )
-#"""
-
-"""
-optimizer = torch.optim.RAdam(
-    params,
-    lr=0.0003,
-    weight_decay=5e-4
-)
-"""
-
-
-# and a learning rate scheduler
-#"""
-lr_scheduler = torch.optim.lr_scheduler.StepLR(
-    optimizer,
-    step_size=15,
-    gamma=0.1
-)
-#"""
-
-"""
-lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode="max", factor=0.1, patience=15, verbose=True
-)
-"""
 
 scaler = torch.amp.GradScaler()
 
@@ -167,12 +130,6 @@ for diff in diffs:
     print(f"Evaluating for diff: {diff}")
 
     model.eval()
-    
-    #metric = MeanAveragePrecision(iou_type="bbox")
-    
-    #coco = get_coco_api_from_dataset(val_loader.dataset)
-    #iou_types = _get_iou_types(model)
-    #coco_evaluator = CocoEvaluator(coco, iou_types)
 
     total_negative, correct_negative = 0, 0
 
@@ -190,9 +147,6 @@ for diff in diffs:
             total_negative += 1
             if is_negative_target(outputs): correct_negative += 1
     
-    #coco_evaluator.accumulate()
-    #coco_evaluator.summarize()
-
     if total_negative == 0:
         control_accuracy = -1
     else:
@@ -208,6 +162,7 @@ for diff in diffs:
     # control accuracy is how good on control images, AP is for non-control (positive) images
     wandb.log({"train loss - diff": avg_train_loss, "eval AP iou=0.5:0.95 - diff": iou, "eval AP iou=0.50 - diff": iou50, "eval AP iou=0.75 - diff": iou75, "control accuracy": control_accuracy})
     
-
+    if (diff * 100) % 10 == 0:
+        torch.save(model, f"fcnn{diff}.pth")
 
 torch.save(model, f"fcnn_final.pth")

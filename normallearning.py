@@ -8,8 +8,6 @@ import torchvision
 from torchvision import transforms
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, fasterrcnn_resnet50_fpn_v2 as fcnn
 import torch
-#from pytorchref.coco_eval import CocoEvaluator
-#from pytorchref.coco_utils import get_coco_api_from_dataset, _get_iou_types
 import wandb
 from torchmetrics.detection import MeanAveragePrecision
 from torchvision.models.detection.rpn import AnchorGenerator
@@ -76,37 +74,12 @@ val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, collate_fn=coll
 
 params = [p for p in model.parameters() if p.requires_grad]
 
-"""
-optimizer = torch.optim.AdamW(
-    params,
-    lr=0.0001,  
-    weight_decay=1e-3
-)
-"""
-
-
 optimizer = torch.optim.SGD(
     params,
-    lr=0.0005,  # Start with a lower LR
+    lr=0.005,  # Start with a lower LR
     momentum=0.9,
     weight_decay=1e-4
 )
-
-
-# and a learning rate scheduler
-"""
-lr_scheduler = torch.optim.lr_scheduler.StepLR(
-    optimizer,
-    step_size=30,
-    gamma=0.1
-)
-"""
-
-
-lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode="max", factor=0.1, patience=15, verbose=True
-)
-
 
 scaler = torch.amp.GradScaler()
 
@@ -134,6 +107,14 @@ for epoch in range(NUM_EPOCHS):
             losses = sum(loss for loss in loss_dict.values())
 
         scaler.scale(losses).backward()
+        
+        #"""
+        scaler.unscale_(optimizer)
+
+        # Since the gradients of optimizer's assigned params are unscaled, clips as usual:
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
+        #"""
+
         scaler.step(optimizer)
         scaler.update()
 
@@ -143,12 +124,6 @@ for epoch in range(NUM_EPOCHS):
     print(f"Evaluating for epoch: {epoch}")
 
     model.eval()
-    
-    #metric = MeanAveragePrecision(iou_type="bbox")
-    
-    #coco = get_coco_api_from_dataset(val_loader.dataset)
-    #iou_types = _get_iou_types(model)
-    #coco_evaluator = CocoEvaluator(coco, iou_types)
 
     total_negative, correct_negative = 0, 0
 
@@ -165,9 +140,6 @@ for epoch in range(NUM_EPOCHS):
         else:
             total_negative += 1
             if is_negative_target(outputs): correct_negative += 1
-    
-    #coco_evaluator.accumulate()
-    #coco_evaluator.summarize()
 
     if total_negative == 0:
         control_accuracy = -1
@@ -183,33 +155,9 @@ for epoch in range(NUM_EPOCHS):
 
     # control accuracy is how good on control images, AP is for non-control (positive) images
     wandb.log({"train loss - epoch": avg_train_loss, "eval AP iou=0.5:0.95 - epoch": iou, "eval AP iou=0.50 - epoch": iou50, "eval AP iou=0.75 - epoch": iou75, "control accuracy": control_accuracy})
-    
-    
-    lr_scheduler.step(iou)
-
 
     if epoch % SAVE_MODEL_INTERVAL == 0:
         torch.save(model, f"fcnn{epoch}.pth")
     
 
 torch.save(model, f"fcnn_final.pth")
-
-
-
-
-
-
-
-"""
-def run():
-    length = len(nd)
-
-    num_negative = 0
-
-    for _, target in tqdm(nd):
-        # if negative
-        if not list(target["boxes"]):
-            num_negative += 1
-
-    print(length, length * 0.2, num_negative)
-""" 
