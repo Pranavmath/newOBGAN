@@ -8,8 +8,6 @@ import torchvision
 from torchvision import transforms
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, fasterrcnn_resnet50_fpn_v2 as fcnn
 import torch
-#from pytorchref.coco_eval import CocoEvaluator
-#from pytorchref.coco_utils import get_coco_api_from_dataset, _get_iou_types
 import wandb
 from torchmetrics.detection import MeanAveragePrecision
 from torchvision.models.detection.rpn import AnchorGenerator
@@ -17,7 +15,7 @@ import torchvision.models.detection._utils as det_utils
 import numpy as np
 
 wandb.init(project="diff model training", save_code=True)
-wandb.save("./normallearning.py")
+wandb.save("./curriculumlearning.py")
 
 def is_negative_target(targets):
     # needs to be a evaluation  batch size of 1 so 1 target only
@@ -69,55 +67,22 @@ cpu_device = torch.device("cpu")
 
 model = get_model().to(device)
 
-train_dataset = CurriculumNoduleDataset("./refineddataset/trainxrays", "./refineddataset/control", "./refineddataset/nodules.json", None, 0, transform)
+train_dataset = CurriculumNoduleDataset("./refineddataset/trainxrays", "./refineddataset/control", "./refineddataset/nodules.json", "./refineddataset/difficulties.json", 0, transform)
+train_dataset.set_difficulty(-1.2)
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
 
-val_dataset = CurriculumNoduleDataset("./refineddataset/testxrays", "./refineddataset/control", "./refineddataset/nodules.json", None, 0, transform)
+val_dataset = NoduleDataset("./refineddataset/testxrays", "./refineddataset/control", "./refineddataset/nodules.json", 0, transform)
 val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
 
 
 params = [p for p in model.parameters() if p.requires_grad]
 
-"""
-optimizer = torch.optim.Adam(
-    params,
-    lr=0.0001,
-    weight_decay=5e-4
-)
-"""
-
-#"""
 optimizer = torch.optim.SGD(
     params,
-    lr=0.003,  # Start with a lower LR
+    lr=0.005,  # Start with a lower LR
     momentum=0.9,
     weight_decay=1e-4
 )
-#"""
-
-"""
-optimizer = torch.optim.RAdam(
-    params,
-    lr=0.0003,
-    weight_decay=5e-4
-)
-"""
-
-
-# and a learning rate scheduler
-#"""
-lr_scheduler = torch.optim.lr_scheduler.StepLR(
-    optimizer,
-    step_size=15,
-    gamma=0.1
-)
-#"""
-
-"""
-lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode="max", factor=0.1, patience=15, verbose=True
-)
-"""
 
 scaler = torch.amp.GradScaler()
 
@@ -127,12 +92,12 @@ metric = MeanAveragePrecision(iou_type="bbox")
 
 print("Started Training")
 
-# decreases from 1 -> 0, then stays at 0 for NUM_AT_ZERO amount of times
 NUM_AT_ZERO = 10
-diffs = np.linspace(0, 1, num=100) + [0] * NUM_AT_ZERO
+diffs = list(np.linspace(-1.2, 3.4, num=100)) + [3.4] * NUM_AT_ZERO
 
 for diff in diffs:
-    print(f"Training for difficulty: {diff}")
+    train_loader.dataset.set_difficulty(diff)
+    print(f"Training for difficulty: {diff}, length: {len(train_loader)}")
     model.train()
 
     for epoch in range(NUM_EPOCHS):
@@ -167,12 +132,6 @@ for diff in diffs:
     print(f"Evaluating for diff: {diff}")
 
     model.eval()
-    
-    #metric = MeanAveragePrecision(iou_type="bbox")
-    
-    #coco = get_coco_api_from_dataset(val_loader.dataset)
-    #iou_types = _get_iou_types(model)
-    #coco_evaluator = CocoEvaluator(coco, iou_types)
 
     total_negative, correct_negative = 0, 0
 
@@ -190,9 +149,6 @@ for diff in diffs:
             total_negative += 1
             if is_negative_target(outputs): correct_negative += 1
     
-    #coco_evaluator.accumulate()
-    #coco_evaluator.summarize()
-
     if total_negative == 0:
         control_accuracy = -1
     else:
@@ -208,31 +164,7 @@ for diff in diffs:
     # control accuracy is how good on control images, AP is for non-control (positive) images
     wandb.log({"train loss - diff": avg_train_loss, "eval AP iou=0.5:0.95 - diff": iou, "eval AP iou=0.50 - diff": iou50, "eval AP iou=0.75 - diff": iou75, "control accuracy": control_accuracy})
     
-
-
-
-    # lr scheduler should step every 
-    lr_scheduler.step(iou)
-
+    if (diff * 100) % 10 == 0:
+        torch.save(model, f"fcnn{diff}.pth")
 
 torch.save(model, f"fcnn_final.pth")
-
-
-
-
-
-
-
-"""
-def run():
-    length = len(nd)
-
-    num_negative = 0
-
-    for _, target in tqdm(nd):
-        # if negative
-        if not list(target["boxes"]):
-            num_negative += 1
-
-    print(length, length * 0.2, num_negative)
-""" 

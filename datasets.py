@@ -96,7 +96,7 @@ class CurriculumNoduleDataset(Dataset):
         self.difficulties = json.load(open(difficulty_file))
         self.nodule_images = os.listdir(self.xray_dir)
         self.transform = transform
-        self.current_difficulty = 0
+        self.current_difficulty = float("-inf")
 
         self.negative_sample_percentage = negative_sample_percentage
         self.idx_is_negative = []
