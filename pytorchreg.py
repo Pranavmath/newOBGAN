@@ -21,7 +21,7 @@ PATH = "fcnn108.pth"
 
 model = torch.load(PATH).to(device)
 
-annotations = json.load(open("./refineddataset/nodules.json"))
+annotations = json.load(open(".Iirc /refineddataset/nodules.json"))
 metadata = json.load(open("./refineddataset/nodulemetadata.json"))
 
 metric = IntersectionOverUnion()
