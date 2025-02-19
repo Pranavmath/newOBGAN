@@ -57,7 +57,7 @@ transform = transforms.Compose([
 ])
 
 # num of epochs per difficulty
-NUM_EPOCHS = 3
+NUM_EPOCHS = 1
 # doing batch size of 4 since 1, 2, or 4 was recommended for faster rcnn
 BATCH_SIZE = 4
 SAVE_MODEL_INTERVAL = 12
@@ -68,7 +68,7 @@ cpu_device = torch.device("cpu")
 model = get_model().to(device)
 
 train_dataset = CurriculumNoduleDataset("./refineddataset/trainxrays", "./refineddataset/control", "./refineddataset/nodules.json", "./refineddataset/difficulties.json", 0, transform)
-train_dataset.set_difficulty(-1.2)
+train_dataset.set_difficulty(-3.3)
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
 
 val_dataset = NoduleDataset("./refineddataset/testxrays", "./refineddataset/control", "./refineddataset/nodules.json", 0, transform)
@@ -93,7 +93,7 @@ metric = MeanAveragePrecision(iou_type="bbox")
 print("Started Training")
 
 NUM_AT_ZERO = 10
-diffs = list(np.linspace(-1.2, 3.4, num=100)) + [3.4] * NUM_AT_ZERO
+diffs = list(np.linspace(-3.3, 1.5, num=100)) + [1.5] * NUM_AT_ZERO
 
 for diff in diffs:
     train_loader.dataset.set_difficulty(diff)
