@@ -4,7 +4,8 @@ from torch.utils.data import Dataset
 from PIL import Image
 import random
 import json
-from torchvision.transforms import functional as F
+from collections import deque
+from typing import overload
 
 # image norm to 0, 1 for faster rcnn
 
@@ -94,6 +95,7 @@ class CurriculumNoduleDataset(Dataset):
         self.annotations = json.load(open(annotations_file))
         self.annotations = {k + ".jpg": [annotation[1] for annotation in v] for k, v in self.annotations.items()}
         self.difficulties = json.load(open(difficulty_file))
+        self.difficulties_deque = deque(sorted(self.difficulties.items(), key=lambda t: t[1]))
         self.nodule_images = os.listdir(self.xray_dir)
         self.transform = transform
         self.current_difficulty = float("-inf")
@@ -101,8 +103,7 @@ class CurriculumNoduleDataset(Dataset):
         self.negative_sample_percentage = negative_sample_percentage
         self.idx_is_negative = []
 
-    
-    def _update_idx_is_negative(self, old_difficulty, new_difficulty):
+    def _update_idx_is_negative1(self, old_difficulty, new_difficulty):
         if new_difficulty < old_difficulty:
             raise ValueError("new_difficulty must be >= old_difficulty")
 
@@ -122,12 +123,33 @@ class CurriculumNoduleDataset(Dataset):
         assert length == len(self.idx_is_negative)
 
         random.shuffle(self.idx_is_negative)
+    
+    def _update_idx_is_negative2(self, num_add):
+        for _ in range(num_add):
+            if self.difficulties_deque:
+                image, diff = self.difficulties_deque.popleft()
+                self.idx_is_negative.append((False, image))
+        
+        num_positive_images = 0
+        for is_negative, _ in self.idx_is_negative:
+            if not is_negative: num_positive_images += 1
+        
+        length = int(num_positive_images // (1 - self.negative_sample_percentage))
+        num_negative_to_add = length - len(self.idx_is_negative)
+        self.idx_is_negative += [(True, None) for _ in range(num_negative_to_add)]
+
+        assert length == len(self.idx_is_negative)
+
+        random.shuffle(self.idx_is_negative)
 
 
     def set_difficulty(self, difficulty):
         """Set the current difficulty level."""
-        self._update_idx_is_negative(self.current_difficulty, difficulty)
+        self._update_idx_is_negative1(self.current_difficulty, difficulty)
         self.current_difficulty = difficulty
+    
+    def difficulty_step(self, num_add=10):
+        self._update_idx_is_negative2(num_add=num_add)
 
 
     def __len__(self):

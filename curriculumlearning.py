@@ -62,13 +62,19 @@ NUM_EPOCHS = 1
 BATCH_SIZE = 4
 SAVE_MODEL_INTERVAL = 12
 
+# we train on the NUM_HARD hardest images for WARMUP number of epochs
+NUM_HARD = 30
+WARMUP = 20
+# NUM_ADD is the number of images we add every diff step
+NUM_ADD = 10
+
 device = torch.device("cuda")
 cpu_device = torch.device("cpu")
 
 model = get_model().to(device)
 
 train_dataset = CurriculumNoduleDataset("./refineddataset/trainxrays", "./refineddataset/control", "./refineddataset/nodules.json", "./refineddataset/difficulties.json", 0, transform)
-train_dataset.set_difficulty(-3.3)
+train_dataset.difficulty_step(NUM_HARD)
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
 
 val_dataset = NoduleDataset("./refineddataset/testxrays", "./refineddataset/control", "./refineddataset/nodules.json", 0, transform)
@@ -92,11 +98,9 @@ metric = MeanAveragePrecision(iou_type="bbox")
 
 print("Started Training")
 
-NUM_AT_ZERO = 10
-diffs = list(np.linspace(-3.3, 1.5, num=100)) + [1.5] * NUM_AT_ZERO
+do_steps = [False] * WARMUP + [True] * 1000
 
-for diff in diffs:
-    train_loader.dataset.set_difficulty(diff)
+for do_step in do_steps:
     print(f"Training for difficulty: {diff}, length: {len(train_loader)}")
     model.train()
 
@@ -166,5 +170,8 @@ for diff in diffs:
     
     if (diff * 100) % 10 == 0:
         torch.save(model, f"fcnn{diff}.pth")
+    
+    if do_step:
+        train_loader.dataset.difficulty_step(num_add=NUM_ADD)
 
 torch.save(model, f"fcnn_final.pth")

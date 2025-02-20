@@ -19,11 +19,13 @@ for xray in os.listdir(xray_path):
         _, area, brightness = metadata[nodule_name]
         area = (area - mean_area) / std_area
         brightness = (brightness - mean_brightness) / std_brightness
-        diff_value = -1 * (area + brightness) / 2
+        diff_value = (area + brightness) / 2
         diffs.append(diff_value)
 
 
     diff[xray] = sum(diffs)/len(diffs)
+
+print(min(diff.values()), max(diff.values()))
 
 with open("./refineddataset/difficulties.json", "w") as f:
     json.dump(diff, f)
