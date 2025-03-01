@@ -2,3 +2,4 @@ My current iteration of using Synthetic data and Curriculum Learning to enhance 
 - It uses diffusion model instead of PConv
 - The code is a lot more optimized and faster
 - Cleaner and higher quality code
+- Better curriculum learning procedure
