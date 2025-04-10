@@ -91,12 +91,15 @@ class CurriculumNoduleDataset(Dataset):
             transform (callable, optional): A function/transform to apply to the image.
         """
         self.xray_dir = xray_dir
+        self.nodule_images = os.listdir(self.xray_dir)
         self.control_dir = control_dir
         self.annotations = json.load(open(annotations_file))
         self.annotations = {k + ".jpg": [annotation[1] for annotation in v] for k, v in self.annotations.items()}
         self.difficulties = json.load(open(difficulty_file))
+
+        self.difficulties = {k: v for k, v in self.difficulties.items() if k in self.nodule_images}
+
         self.difficulties_deque = deque(sorted(self.difficulties.items(), key=lambda t: t[1]))
-        self.nodule_images = os.listdir(self.xray_dir)
         self.transform = transform
         self.current_difficulty = float("-inf")
 

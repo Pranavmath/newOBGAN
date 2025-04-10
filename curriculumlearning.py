@@ -100,8 +100,8 @@ print("Started Training")
 
 do_steps = [False] * WARMUP + [True] * 1000
 
-for do_step in do_steps:
-    print(f"Training for difficulty: {diff}, length: {len(train_loader)}")
+for step_idx, do_step in enumerate(do_steps):
+    print(f"length in batchs: {len(train_loader)}")
     model.train()
 
     for epoch in range(NUM_EPOCHS):
@@ -133,7 +133,7 @@ for do_step in do_steps:
 
 
 
-    print(f"Evaluating for diff: {diff}")
+    print(f"Evaluating for length (in batchs): {len(train_loader)}")
 
     model.eval()
 
@@ -168,8 +168,8 @@ for do_step in do_steps:
     # control accuracy is how good on control images, AP is for non-control (positive) images
     wandb.log({"train loss - diff": avg_train_loss, "eval AP iou=0.5:0.95 - diff": iou, "eval AP iou=0.50 - diff": iou50, "eval AP iou=0.75 - diff": iou75, "control accuracy": control_accuracy})
     
-    if (diff * 100) % 10 == 0:
-        torch.save(model, f"fcnn{diff}.pth")
+    #if (step_idx * 100) % 10 == 0:
+    #    torch.save(model, f"fcnn{step_idx}.pth")
     
     if do_step:
         train_loader.dataset.difficulty_step(num_add=NUM_ADD)

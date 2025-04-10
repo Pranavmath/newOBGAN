@@ -1,3 +1,5 @@
+# generate testing and training sets so that it the samples in the test dataset are uniformally sampled across area and brightness
+
 import json
 import numpy as np
 from PIL import Image
@@ -9,7 +11,6 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import shutil
-
 
 def sample_points_kmeans_scaled(points, n):
     # Scale data to normalize variance
