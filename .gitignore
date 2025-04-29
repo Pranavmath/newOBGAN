@@ -1,0 +1,4 @@
+refineddataset/*
+syntheticdataset/*
+*.pth
+*.zip
