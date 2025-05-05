@@ -95,7 +95,7 @@ params = [p for p in model.parameters() if p.requires_grad]
 
 optimizer = torch.optim.AdamW(
     params,
-    lr=0.0005,  # Start with a lower LR
+    lr=0.001,  # Start with a lower LR
     betas=(0.9, 0.999),
     weight_decay=1e-4
 )
