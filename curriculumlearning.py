@@ -54,6 +54,13 @@ def get_model():
 transform = transforms.Compose([
     transforms.Resize(1024),
     transforms.Grayscale(num_output_channels=1),
+    transforms.RandomHorizontalFlip(p=1),
+    transforms.ToTensor()
+])
+
+val_transform = transforms.Compose([
+    transforms.Resize(1024),
+    transforms.Grayscale(num_output_channels=1),
     transforms.ToTensor()
 ])
 
@@ -74,20 +81,22 @@ cpu_device = torch.device("cpu")
 
 model = get_model().to(device)
 
-train_dataset = CurriculumNoduleDataset("./refineddataset/trainxrays", "./refineddataset/control", "./refineddataset/nodules.json", "./refineddataset/difficulties.json", 0, transform)
+control_percentage = 0
+
+train_dataset = CurriculumNoduleDataset("./syntheticdataset/trainxrays", "./syntheticdataset/control", "./syntheticdataset/nodules.json", "./syntheticdataset/difficulties.json", control_percentage, transform)
 train_dataset.difficulty_step(NUM_HARD)
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
 
-val_dataset = NoduleDataset("./refineddataset/testxrays", "./refineddataset/control", "./refineddataset/nodules.json", 0, transform)
+val_dataset = NoduleDataset("./syntheticdataset/testxrays", "./syntheticdataset/control", "./syntheticdataset/nodules.json", control_percentage, val_transform)
 val_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
 
 
 params = [p for p in model.parameters() if p.requires_grad]
 
-optimizer = torch.optim.SGD(
+optimizer = torch.optim.AdamW(
     params,
-    lr=0.005,  # Start with a lower LR
-    momentum=0.9,
+    lr=0.0005,  # Start with a lower LR
+    betas=(0.9, 0.999),
     weight_decay=1e-4
 )
 
