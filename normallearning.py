@@ -29,7 +29,7 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 def get_model():
-    model = fcnn(weights="DEFAULT", rpn_batch_size_per_image=256, rpn_positive_fraction=0.2)
+    model = fcnn(weights=None, num_classes=2, rpn_batch_size_per_image=256, rpn_positive_fraction=0.2)
     num_classes = 2  # 1 class (nodule) + background
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
