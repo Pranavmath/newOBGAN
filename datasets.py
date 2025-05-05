@@ -221,7 +221,7 @@ class CurriculumNoduleDataset(Dataset):
             boxes = torch.tensor(self.annotations[image_name], dtype=torch.float32)
 
             boxes = torchvision.tv_tensors.BoundingBoxes(boxes, format=torchvision.tv_tensors.BoundingBoxFormat("XYXY"), canvas_size=(IMAGE_SIZE, IMAGE_SIZE))
-            boxes, labels = self.transform(boxes, labels)
+            boxes = self.transform(boxes)
 
 
             target = {
