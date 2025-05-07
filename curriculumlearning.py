@@ -71,10 +71,10 @@ BATCH_SIZE = 4
 SAVE_MODEL_INTERVAL = 12
 
 # we train on the NUM_HARD hardest images for WARMUP number of epochs
-NUM_HARD = 30
+NUM_HARD = 200
 WARMUP = 20
 # NUM_ADD is the number of images we add every diff step
-NUM_ADD = 10
+NUM_ADD = 150
 
 device = torch.device("cuda")
 cpu_device = torch.device("cpu")
